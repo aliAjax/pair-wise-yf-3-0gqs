@@ -4,6 +4,7 @@ import FilterPanel from '../components/FilterPanel';
 import VisualizationPanel from '../components/VisualizationPanel';
 import MemoryCard from '../components/MemoryCard';
 import MemoryModal from '../components/MemoryModal';
+import RecycleBinModal from '../components/RecycleBinModal';
 import { useMemoryStore } from '../store/memoryStore';
 import type { Filters } from '../utils/helpers';
 import { filterMemories } from '../utils/helpers';
@@ -18,10 +19,21 @@ const defaultFilters: Filters = {
 };
 
 export default function Home() {
-  const { memories, initIfEmpty, addMemory, updateMemory, deleteMemory } = useMemoryStore();
+  const {
+    memories,
+    trashedMemories,
+    initIfEmpty,
+    addMemory,
+    updateMemory,
+    deleteMemory,
+    restoreMemory,
+    purgeMemory,
+    emptyTrash,
+  } = useMemoryStore();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [editing, setEditing] = useState<SmellMemory | null>(null);
 
   useEffect(() => {
@@ -49,12 +61,27 @@ export default function Home() {
     }
   };
 
+  // 删除改为进入回收站（软删除），无需二次确认
   const handleDelete = (id: string) => {
-    const target = memories.find((m) => m.id === id);
-    const msg = `确认删除「${target?.location ?? '这段记忆'}」吗？`;
+    deleteMemory(id);
+    if (expandedId === id) setExpandedId(null);
+  };
+
+  // 回收站中的永久删除：二次确认
+  const handlePurge = (id: string) => {
+    const target = trashedMemories.find((t) => t.memory.id === id);
+    const msg = `将永久删除「${target?.memory.location ?? '这段记忆'}」，删除后无法恢复。确认继续吗？`;
     if (window.confirm(msg)) {
-      deleteMemory(id);
-      if (expandedId === id) setExpandedId(null);
+      purgeMemory(id);
+    }
+  };
+
+  // 清空回收站：二次确认
+  const handleEmptyTrash = () => {
+    if (trashedMemories.length === 0) return;
+    const msg = `将永久清空回收站内的 ${trashedMemories.length} 条气味，此操作无法恢复。确认继续吗？`;
+    if (window.confirm(msg)) {
+      emptyTrash();
     }
   };
 
@@ -68,7 +95,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <Header onAdd={openAddModal} memoryCount={memories.length} />
+      <Header
+        onAdd={openAddModal}
+        onOpenTrash={() => setTrashOpen(true)}
+        memoryCount={memories.length}
+        trashedCount={trashedMemories.length}
+      />
 
       <main className="container max-w-6xl pb-20">
         <FilterPanel
@@ -143,6 +175,15 @@ export default function Home() {
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
         editingData={editing}
+      />
+
+      <RecycleBinModal
+        isOpen={trashOpen}
+        onClose={() => setTrashOpen(false)}
+        trashed={trashedMemories}
+        onRestore={restoreMemory}
+        onPurge={handlePurge}
+        onEmpty={handleEmptyTrash}
       />
     </div>
   );
