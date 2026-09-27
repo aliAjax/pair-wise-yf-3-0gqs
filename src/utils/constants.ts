@@ -16,6 +16,8 @@ export interface SmellMemory {
   want_again: boolean;
   created_at: string;
   updated_at: string;
+  /** 移入回收站的时间；为 null/undefined 表示仍在档案中 */
+  deleted_at?: string | null;
 }
 
 export const SEASONS: { value: Season; label: string; emoji: string }[] = [

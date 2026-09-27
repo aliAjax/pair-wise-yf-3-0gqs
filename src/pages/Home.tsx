@@ -6,7 +6,7 @@ import MemoryCard from '../components/MemoryCard';
 import MemoryModal from '../components/MemoryModal';
 import { useMemoryStore } from '../store/memoryStore';
 import type { Filters } from '../utils/helpers';
-import { filterMemories } from '../utils/helpers';
+import { filterMemories, getActiveMemories } from '../utils/helpers';
 import type { SmellMemory } from '../utils/constants';
 import type { MemoryInput } from '../store/memoryStore';
 import { BookOpenCheck } from 'lucide-react';
@@ -19,6 +19,7 @@ const defaultFilters: Filters = {
 
 export default function Home() {
   const { memories, initIfEmpty, addMemory, updateMemory, deleteMemory } = useMemoryStore();
+  const activeMemories = useMemo(() => getActiveMemories(memories), [memories]);
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,12 +51,9 @@ export default function Home() {
   };
 
   const handleDelete = (id: string) => {
-    const target = memories.find((m) => m.id === id);
-    const msg = `确认删除「${target?.location ?? '这段记忆'}」吗？`;
-    if (window.confirm(msg)) {
-      deleteMemory(id);
-      if (expandedId === id) setExpandedId(null);
-    }
+    // 软删除：先进入回收站，可在回收站中恢复或永久清理
+    deleteMemory(id);
+    if (expandedId === id) setExpandedId(null);
   };
 
   const scrollToCard = (id: string) => {
@@ -68,7 +66,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <Header onAdd={openAddModal} memoryCount={memories.length} />
+      <Header onAdd={openAddModal} memoryCount={activeMemories.length} />
 
       <main className="container max-w-6xl pb-20">
         <FilterPanel

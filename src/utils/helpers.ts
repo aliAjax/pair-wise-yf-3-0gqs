@@ -20,8 +20,21 @@ export interface Filters {
   emotion: string;
 }
 
+/** 仍在档案中的记录（未进入回收站） */
+export function getActiveMemories(memories: SmellMemory[]): SmellMemory[] {
+  return memories.filter((m) => !m.deleted_at);
+}
+
+/** 回收站中的记录，最近删除的排在最前 */
+export function getTrashedMemories(memories: SmellMemory[]): SmellMemory[] {
+  return memories
+    .filter((m) => !!m.deleted_at)
+    .sort((a, b) => (a.deleted_at! < b.deleted_at! ? 1 : -1));
+}
+
 export function filterMemories(memories: SmellMemory[], filters: Filters): SmellMemory[] {
   return memories.filter(m => {
+    if (m.deleted_at) return false;
     if (filters.smellType && m.smell_type !== filters.smellType) return false;
     if (filters.season && m.season !== filters.season) return false;
     if (filters.emotion && m.emotion !== filters.emotion) return false;

@@ -19,9 +19,18 @@ export interface MemoryInput {
 
 interface MemoryStore {
   memories: SmellMemory[];
+  /** 是否已经完成过初始化（避免清空后又被 mock 数据复活） */
+  initialized: boolean;
   addMemory: (input: MemoryInput) => void;
   updateMemory: (id: string, input: MemoryInput) => void;
+  /** 软删除：移入回收站 */
   deleteMemory: (id: string) => void;
+  /** 从回收站恢复 */
+  restoreMemory: (id: string) => void;
+  /** 永久删除单条 */
+  purgeMemory: (id: string) => void;
+  /** 清空回收站（从本地存储彻底移除） */
+  clearTrash: () => void;
   initIfEmpty: () => void;
 }
 
@@ -29,6 +38,7 @@ export const useMemoryStore = create<MemoryStore>()(
   persist(
     (set, get) => ({
       memories: [],
+      initialized: false,
       addMemory: (input) => {
         const now = new Date().toISOString();
         const newMem: SmellMemory = {
@@ -49,11 +59,36 @@ export const useMemoryStore = create<MemoryStore>()(
         });
       },
       deleteMemory: (id) => {
+        const now = new Date().toISOString();
+        set({
+          memories: get().memories.map((m) =>
+            m.id === id ? { ...m, deleted_at: now } : m,
+          ),
+        });
+      },
+      restoreMemory: (id) => {
+        set({
+          memories: get().memories.map((m) => {
+            if (m.id !== id) return m;
+            const { deleted_at, ...rest } = m;
+            void deleted_at;
+            return rest;
+          }),
+        });
+      },
+      purgeMemory: (id) => {
         set({ memories: get().memories.filter((m) => m.id !== id) });
       },
+      clearTrash: () => {
+        set({ memories: get().memories.filter((m) => !m.deleted_at) });
+      },
       initIfEmpty: () => {
-        if (get().memories.length === 0) {
-          set({ memories: mockMemories });
+        if (get().initialized) return;
+        // 首次使用且没有任何档案时灌入示例数据
+        if (get().memories.filter((m) => !m.deleted_at).length === 0) {
+          set({ memories: mockMemories, initialized: true });
+        } else {
+          set({ initialized: true });
         }
       },
     }),
